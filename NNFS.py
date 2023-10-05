@@ -1,5 +1,8 @@
 import numpy as np
 from nnfs.datasets import sine_data,spiral_data,vertical_data
+import random
+from collections import Counter
+import matplotlib.pyplot as plt
 
 
 
@@ -9,7 +12,10 @@ def sigmoid(x,derivative=False):
         return result*(1-result)
     return result
 
-def relu(x):
+def relu(x,derivative=False):
+    if(derivative):
+        if(x>=0):return 1
+        return 0
     return max(0,x)
 
 class layer:
@@ -55,7 +61,6 @@ class layer:
         if(activation_function=="SIGMOID"):
             self.set_output([sigmoid(i) for i in self.input])
     
-
 class neural_network:
     def __init__(self):
         self.weights=[]
@@ -138,9 +143,13 @@ class neural_network:
     def compute_accuracy(self,actual,predicted):
         correct=0
         for i in range(len(actual)):
+            # self.compute_loss(predicted[i])
+            # print(predicted[i],actual[i])
             if(predicted[i]==actual[i]):
+                
                 correct+=1
         print("Accuracy is ",(correct/len(actual))*100)
+        # self.compute_loss(actual)
         return (correct/len(actual))*100
 
     def compute_loss(self,output):
@@ -149,6 +158,18 @@ class neural_network:
             sum+=(output[i]-self.layers[-1].output[i])**2
         loss=sum/len(output)
         print("Loss is ",sum/len(output))
+
+    def test(self,testX,testY):
+        predicted_outputs=[]
+        for i in range(len(testX)):
+            self.forward_propogation(testX[i])
+            # print(testX[i],testY[i],self.layers[-1].output)
+            predicted_output=[1 if max(self.layers[-1].output)==j else 0 for j in self.layers[-1].output]
+            predicted_outputs.append(predicted_output)
+        self.compute_accuracy(testY,predicted_outputs)
+
+
+
 
 
 
@@ -175,39 +196,105 @@ class neural_network:
                         self.layers[j].biases[k]-=self.layers[j].bias_derivatives[k]*learning_rate
 
                 predicted_output=[1 if max(self.layers[-1].output)==j else 0 for j in self.layers[-1].output]
-                # predicted_output=self.layers[-1].output[0][0]
                 predicted_outputs.append(predicted_output)
-                # print(predicted_output,trainY[i])
-                # self.compute_loss(trainY[i])
-            accuracies.append(self.compute_accuracy(trainY,predicted_outputs))
-            # print(accuracies[-11,-1])
-            # if(len(accuracies)>=11 and max(accuracies)>=0.8 and len(set(accuracies[-11:-1]))==1):
-            #     learning_rate=learning_rate/2
-            #     print("Learning rate changed")
-            # print(predicted_outputs)
-
+            # accuracies.append(self.compute_accuracy(trainY,predicted_outputs))
+            self.test(testX,testY)
+            learning_rate=learning_rate*0.999
+            # if((ep+1)%500==0):
+            #     learning_rate/=2
 
 def onehot(val,classes):
     l=[0 for i in range(classes)]
     l[val]=1
-    return l           
+    return l
+           
 
-samples=5000
-classes=10
-data=vertical_data(samples,classes)
+samples_of_each_class=100
+classes=2
+data=vertical_data(samples_of_each_class,classes)
+train_test_split_factor=0.85
+divide_index=int(samples_of_each_class*classes*train_test_split_factor)
+learning_rate=0.1
 # print(data)
 
 n=neural_network()
-neurons=[2,4,5,4,classes]
+neurons=[2,1,classes]
 for i in neurons:
     n.add_layer(layer(i))
 
 
-trainX=data[0]
+X=data[0]
 d={i:onehot(i,classes) for i in range(classes)}
-# trainY=np.reshape(data[1],(len(data[1]),1))
-trainY=[d[i] for i in data[1]]
+Y=[d[i] for i in data[1]]
 
-n.train(10000,trainX,trainY,[],[],0.5)
+temp = list(zip(X,Y))
+random.shuffle(temp)
+X,Y = zip(*temp)
+X,Y = list(X), list(Y)
+
+X_train=X[:divide_index]
+X_test=X[divide_index:]
+
+Y_train=Y[:divide_index]
+Y_test=Y[divide_index:]
+
+# print(X_test)
+
+
+# print(Y_train.count([1,0]))
+# print(Y_train.count([0,1]))
+# print(Y_test.count([1,0]))
+# print(Y_test.count([0,1]))
+# print(len(Y_train),len(Y_test))
+# print(Counter(Y_test))
+# print(Counter(Y_test))
+
+
+# # print(Y)
+colors=['red','blue','green','pink','yellow','purple']
+for cl in range(classes):
+    plt.scatter([X[i][0] for i in range(len(X)) if Y[i].index(1)==cl],[X[i][1] for i in range(len(X)) if Y[i].index(1)==cl],c=colors[cl])
+    # plt.scatter([X[i][0] for i in range(len(X)) if Y[i].index(1)==1],[X[i][1] for i in range(len(X)) if Y[i].index(1)==1],c="red")
+plt.show()
+
+
+# print(X_train)
+n.train(10000,X_train,Y_train,X_test,Y_test,learning_rate=learning_rate)
+# n.train(10000,X,Y,X,Y,0.5)
+
+# from sample_dataset import generate
+# samples=100
+# classes=4
+# X,Y=generate(samples)
+# divide_index=360
+# print(len(X))
+# for i in range(len(X)):
+#     for j in range(len(X[i])):
+#         X[i][j]=X[i][j]/100
+
+# d={i:onehot(i,classes) for i in range(classes)}
+# Y=[d[i] for i in Y]
+
+# X_train=X[:divide_index]
+# X_test=X[divide_index:]
+
+# Y_train=Y[:divide_index]
+# Y_test=Y[divide_index:]
+
+# n2=neural_network()
+# neurons=[2,1,2,4]
+# for i in neurons:
+#     n2.add_layer(layer(i))
+
+
+# print(divide_index,len(X_train),len(Y_train),len(X_test),len(Y_test))
+
+# n2.train(1000,X_train,Y_train,X_test,Y_test,0.01)
+
+# for i,j in zip(X_train,Y_train):
+#     print(i,"==>",j)
+
+
+
 
 
